@@ -2,3 +2,4 @@
 *.pyc
 pyktx2/_version.py
 *.egg-info
+/dist/
