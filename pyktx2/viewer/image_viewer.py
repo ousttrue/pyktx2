@@ -215,8 +215,8 @@ class ImageViewer(QtWidgets.QMainWindow):
                 image_index = level * \
                     (layer_count * face_count * depth_count) + layer * \
                     (face_count * depth_count) + face * (depth_count) + depth
-                print(
-                    f'show image: {level}, {layer}, {face}, {depth}: {image_index}')
+                # print(
+                #     f'show image: {level}, {layer}, {face}, {depth}: {image_index}')
                 self._set_image(
                     self.ktx2.levelImages[image_index], self.ktx2.vkFormat)
             case _:

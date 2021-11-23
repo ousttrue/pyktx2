@@ -538,21 +538,6 @@ def get_stride(format: VkFormat) -> int:
             raise NotImplementedError()
 
 
-def parse_image(level: int, r: BytesReader, width: int, height: int, format: VkFormat, layer: int, face: int, depth: int) -> Image:
-
-    stride = get_stride(format)
-
-    factor = 1
-    if level > 0:
-        factor = pow(2, level)
-
-    width = width//factor
-    height = height//factor
-    image_size = width * height * stride
-
-    return Image(r.read(image_size), width, height)
-
-
 def parse_bytes(data: bytes) -> Ktx2:
     r = BytesReader(data)
     match r.read(12):
@@ -615,15 +600,26 @@ def parse_bytes(data: bytes) -> Ktx2:
     levelImages = []
     for i, level in enumerate(levelIndices):
         # level
-        data = r.read(level.byteLength)
-        level_reader = BytesReader(data)
+        level_data = data[level.byteOffset:level.byteOffset+level.byteLength]
+        level_reader = BytesReader(level_data)
+
+        stride = get_stride(vkFormat)
+
+        factor = pow(2, i)
+
+        level_width = pixelWidth//factor
+        level_height = pixelHeight//factor
+        image_size = level_width * level_height * stride
+
+        assert image_size * max(1, layerCount) * faceCount * \
+            max(1, pixelDepth) == len(level_data)
+
         for layer in range(max(1, layerCount)):
             for face in range(faceCount):
                 for depth in range(max(1, pixelDepth)):
-                    levelImages.append(parse_image(
-                        i, level_reader, pixelWidth, pixelHeight, vkFormat, layer, face, depth))
-
-    assert r.is_end()
+                    image = Image(level_reader.read(image_size),
+                                  level_width, level_height)
+                    levelImages.append(image)
 
     return Ktx2(
         vkFormat,
