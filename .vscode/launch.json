@@ -9,6 +9,10 @@
             "type": "python",
             "request": "launch",
             "module": "pyktx2.viewer",
+            "args": [
+                "--file",
+                "${env:GLTF_SAMPLE_ENVIRONMENTS}/chromatic/charlie/sheen.ktx2"
+            ],
             "console": "integratedTerminal"
         }
     ]
