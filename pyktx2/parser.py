@@ -530,15 +530,6 @@ class Image(NamedTuple):
     height: int
 
 
-class CubeMap(NamedTuple):
-    x_positive: Image
-    x_negative: Image
-    y_positive: Image
-    y_negative: Image
-    z_positive: Image
-    z_negative: Image
-
-
 def get_stride(format: VkFormat) -> int:
     match format:
         case VkFormat.VK_FORMAT_R16G16B16A16_SFLOAT:
@@ -547,7 +538,7 @@ def get_stride(format: VkFormat) -> int:
             raise NotImplementedError()
 
 
-def parse_cubemap(level: int, data: bytes, width: int, height: int, format: VkFormat) -> CubeMap:
+def parse_image(level: int, r: BytesReader, width: int, height: int, format: VkFormat, layer: int, face: int, depth: int) -> Image:
 
     stride = get_stride(format)
 
@@ -558,12 +549,8 @@ def parse_cubemap(level: int, data: bytes, width: int, height: int, format: VkFo
     width = width//factor
     height = height//factor
     image_size = width * height * stride
-    assert image_size * 6 == len(data)
 
-    r = BytesReader(data)
-    cubemap = CubeMap(
-        *[Image(r.read(image_size), width, height) for _ in range(6)])
-    return cubemap
+    return Image(r.read(image_size), width, height)
 
 
 def parse_bytes(data: bytes) -> Ktx2:
@@ -625,26 +612,16 @@ def parse_bytes(data: bytes) -> Ktx2:
     supercompressionGlobalData = r.read(sgdByteLength)
 
     # Mip Level Array
-    if levelCount == 0:
-        levelCount = 1
-    if layerCount == 0:
-        layerCount = 1
-    if pixelDepth == 0:
-        pixelDepth = 1
-    match layerCount, pixelDepth:
-        case 1, 1:
-            if faceCount == 6:
-                levelImages = []
-                for level in range(levelCount):
-                    level_width = pixelWidth
-                    level_height = pixelHeight
-                    levelImages.append(parse_cubemap(level,
-                                                     r.read(levelIndices[level].byteLength), level_width, level_height, vkFormat))
-
-            else:
-                raise NotImplementedError()
-        case _:
-            raise NotImplementedError()
+    levelImages = []
+    for i, level in enumerate(levelIndices):
+        # level
+        data = r.read(level.byteLength)
+        level_reader = BytesReader(data)
+        for layer in range(max(1, layerCount)):
+            for face in range(faceCount):
+                for depth in range(max(1, pixelDepth)):
+                    levelImages.append(parse_image(
+                        i, level_reader, pixelWidth, pixelHeight, vkFormat, layer, face, depth))
 
     assert r.is_end()
 
