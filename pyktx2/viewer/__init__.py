@@ -11,8 +11,7 @@ def run():
 
     arg_parser = ArgumentParser(description="Image Viewer",
                                 formatter_class=RawTextHelpFormatter)
-    arg_parser.add_argument('-f', '--file', type=str,
-                            nargs='?', help='Image file')
+    arg_parser.add_argument('file', type=str, nargs='?', help='Image file')
     args = arg_parser.parse_args()
 
     app = QApplication(sys.argv)
