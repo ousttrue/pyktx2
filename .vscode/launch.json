@@ -5,7 +5,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: Current File",
+            "name": "sheen.ktx2",
             "type": "python",
             "request": "launch",
             "module": "pyktx2.viewer",
@@ -13,6 +13,16 @@
                 "${env:GLTF_SAMPLE_ENVIRONMENTS}/chromatic/charlie/sheen.ktx2"
             ],
             "console": "integratedTerminal"
-        }
+        },
+        {
+            "name": "StainedGlassLamp_base_basecolor.ktx2",
+            "type": "python",
+            "request": "launch",
+            "module": "pyktx2.viewer",
+            "args": [
+                "${env:GLTF_SAMPLE_MODELS}/2.0/StainedGlassLamp/glTF-KTX-BasisU/StainedGlassLamp_base_basecolor.ktx2"
+            ],
+            "console": "integratedTerminal"
+        },
     ]
 }

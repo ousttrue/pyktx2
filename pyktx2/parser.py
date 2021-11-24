@@ -485,10 +485,53 @@ class Ktx2(NamedTuple):
     levelImages: List[Any]
 
 
+class ColorModel(Enum):
+    NONE = 0
+    KHR_DF_MODEL_ETC1S = 163
+    KHR_DF_MODEL_UASTC = 166
+
+
+class ColorPrimaries(Enum):
+    KHR_DF_PRIMARIES_UNSPECIFIED = 0
+    KHR_DF_PRIMARIES_BT709 = 1
+    KHR_DF_PRIMARIES_BT601_EBU = 2
+    KHR_DF_PRIMARIES_BT601_SMPTE = 3
+    KHR_DF_PRIMARIES_BT2020 = 4
+    KHR_DF_PRIMARIES_CIEXYZ = 5
+    KHR_DF_PRIMARIES_ACES = 6
+    KHR_DF_PRIMARIES_ACESCC = 7
+    KHR_DF_PRIMARIES_NTSC1953 = 8
+    KHR_DF_PRIMARIES_PAL525 = 9
+    KHR_DF_PRIMARIES_DISPLAYP3 = 10
+    KHR_DF_PRIMARIES_ADOBERGB = 11
+
+
+class TransferFunction(Enum):
+    KHR_DF_TRANSFER_UNSPECIFIED = 0
+    KHR_DF_TRANSFER_LINEAR = 1
+    KHR_DF_TRANSFER_SRGB = 2
+    KHR_DF_TRANSFER_ITU = 3
+    KHR_DF_TRANSFER_NTSC = 4
+    KHR_DF_TRANSFER_SLOG = 5
+    KHR_DF_TRANSFER_SLOG2 = 6
+    KHR_DF_TRANSFER_BT1886 = 7
+    KHR_DF_TRANSFER_HLG_OETF = 8
+    KHR_DF_TRANSFER_HLG_EOTF = 9
+    KHR_DF_TRANSFER_PQ_EOTF = 10
+    KHR_DF_TRANSFER_PQ_OETF = 11
+    KHR_DF_TRANSFER_DCIP3 = 12
+    KHR_DF_TRANSFER_PAL_OETF = 13
+    KHR_DF_TRANSFER_PAL625_EOTF = 14
+    KHR_DF_TRANSFER_ST240 = 15
+    KHR_DF_TRANSFER_ACESCC = 16
+    KHR_DF_TRANSFER_ACESCCT = 17
+    KHR_DF_TRANSFER_ADOBERGB = 18
+
+
 class DFDBasicFlags(NamedTuple):
-    colorModel: int
-    colorPrimaries: int
-    transferFunction: int
+    colorModel: ColorModel
+    colorPrimaries: ColorPrimaries
+    transferFunction: TransferFunction
     flags: int
     texelBlockDimension0: int
     texelBlockDimension1: int
@@ -515,7 +558,12 @@ def parse_dfd(data: bytes):
     match descriptorType_vendorId:
         case 0:
             # Basic
-            dfd = DFDBasicFlags(*r.read(16))
+            flags = [b for b in r.read(16)]
+            dfd = DFDBasicFlags(
+                ColorModel(flags[0]),
+                ColorPrimaries(flags[1]),
+                TransferFunction(flags[2]),
+                *flags[3:])
             sample_count = (descriptorBlockSize - 24)//16
             samples = [r.read(16) for _ in range(sample_count)]
             return dfd, samples
@@ -600,26 +648,36 @@ def parse_bytes(data: bytes) -> Ktx2:
     levelImages = []
     for i, level in enumerate(levelIndices):
         # level
-        level_data = data[level.byteOffset:level.byteOffset+level.byteLength]
+        level_data = data[level.byteOffset:level.byteOffset +
+                          level.byteLength]
         level_reader = BytesReader(level_data)
 
-        stride = get_stride(vkFormat)
+        match supercompressionScheme:
+            case SupercompressionScheme.NONE:
 
-        factor = pow(2, i)
+                stride = get_stride(vkFormat)
 
-        level_width = pixelWidth//factor
-        level_height = pixelHeight//factor
-        image_size = level_width * level_height * stride
+                factor = pow(2, i)
 
-        assert image_size * max(1, layerCount) * faceCount * \
-            max(1, pixelDepth) == len(level_data)
+                level_width = pixelWidth//factor
+                level_height = pixelHeight//factor
+                image_size = level_width * level_height * stride
 
-        for layer in range(max(1, layerCount)):
-            for face in range(faceCount):
-                for depth in range(max(1, pixelDepth)):
-                    image = Image(level_reader.read(image_size),
-                                  level_width, level_height)
-                    levelImages.append(image)
+                assert image_size * max(1, layerCount) * faceCount * \
+                    max(1, pixelDepth) == len(level_data)
+
+                for layer in range(max(1, layerCount)):
+                    for face in range(faceCount):
+                        for depth in range(max(1, pixelDepth)):
+                            image = Image(level_reader.read(image_size),
+                                          level_width, level_height)
+                            levelImages.append(image)
+
+            case SupercompressionScheme.BasisLZ:
+                pass
+
+            case _:
+                raise NotImplementedError()
 
     return Ktx2(
         vkFormat,

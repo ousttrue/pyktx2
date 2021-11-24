@@ -33,8 +33,12 @@ class Ktx2Model(QtCore.QAbstractItemModel):
                                 level_index.uncompressedByteLength), ()),
             ))
 
-        def dfd_node(dfd):
-            return Node(get_id(), ('dfd', ''), ())
+        def dfd_node(dfd: pyktx2.parser.DFDBasicFlags, samples):
+            return Node(get_id(), ('dfd', ''), tuple((
+                Node(get_id(), ('colorModel', dfd.colorModel.name), ()),
+                Node(get_id(), ('colorPrimaries', dfd.colorPrimaries.name), ()),
+                Node(get_id(), ('transferFunction', dfd.transferFunction.name), ()),
+            )))
 
         def depth_image_node(level: int, layer: int, face: int, depth: int) -> Node:
             return Node(get_id(), ('depth', depth), tuple(
@@ -86,7 +90,7 @@ class Ktx2Model(QtCore.QAbstractItemModel):
                 level_index_node(i, level) for i, level in enumerate(ktx2.levelIndices)
             )),
 
-            dfd_node(ktx2.dfd),
+            dfd_node(*ktx2.dfd),
 
             Node(get_id(), ('kv', len(ktx2.kv)), tuple(
                 Node(get_id(), (k, v), ()) for k, v in ktx2.kv.items()
@@ -196,7 +200,7 @@ class ImageViewer(QtWidgets.QMainWindow):
     @ QtCore.Slot()  # type: ignore
     def _on_select(self, selected: QtCore.QItemSelection, deselected):
         for index in selected.indexes():
-            item = index.internalPointer()
+            item = index.internalPointer()  # type: ignore
             self.select(item)
 
     def select(self, node: Node):
@@ -229,8 +233,8 @@ class ImageViewer(QtWidgets.QMainWindow):
 
         self.model = Ktx2Model(path, self.ktx2)
         self.tree.setModel(self.model)
-        self.tree.selectionModel().selectionChanged.connect(
-            self._on_select)  # type: ignore
+        self.tree.selectionModel().selectionChanged.connect(  # type: ignore
+            self._on_select)
 
         message = f'Opened "{path}", {self.ktx2.pixelWidth}x{self.ktx2.pixelHeight}, format: {self.ktx2.vkFormat})'
         self.statusBar().showMessage(message)
