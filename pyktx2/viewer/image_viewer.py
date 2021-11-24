@@ -2,6 +2,8 @@ import pathlib
 from typing import NamedTuple, Tuple, Dict, List, Any
 from PySide6 import QtWidgets, QtGui, QtCore
 import pyktx2.parser
+import logging
+logger = logging.getLogger()
 
 
 class Node(NamedTuple):
@@ -122,11 +124,6 @@ class Ktx2Model(QtCore.QAbstractItemModel):
                 item: Node = index.internalPointer()  # type: ignore
                 return item.data[index.column()]
 
-    # def flags(self, index):
-    #     if not index.isValid():
-    #         return QtCore.Qt.NoItemFlags
-    #     return QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable
-
     def headerData(self, section: int, orientation, role):
         match orientation, role:
             case QtCore.Qt.Horizontal, QtCore.Qt.DisplayRole:
@@ -174,6 +171,17 @@ class Ktx2Model(QtCore.QAbstractItemModel):
         return path
 
 
+class QTextEditLogger(logging.Handler):
+    def __init__(self, parent):
+        super().__init__()
+        self.widget = QtWidgets.QPlainTextEdit(parent)
+        self.widget.setReadOnly(True)
+
+    def emit(self, record):
+        msg = self.format(record)
+        self.widget.appendPlainText(msg)
+
+
 class ImageViewer(QtWidgets.QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -197,6 +205,15 @@ class ImageViewer(QtWidgets.QMainWindow):
         self.tree = QtWidgets.QTreeView()
         self.dock_left.setWidget(self.tree)
 
+        # logger
+        self.logger = QTextEditLogger(self)
+        self.dock_bottom = QtWidgets.QDockWidget("log", self)
+        self.addDockWidget(QtGui.Qt.BottomDockWidgetArea, self.dock_bottom)
+        self.dock_bottom.setWidget(self.logger.widget)
+        self.logger.setFormatter(logging.Formatter(
+            '%(asctime)s - %(levelname)s - %(message)s'))
+        logging.getLogger().addHandler(self.logger)
+
     @ QtCore.Slot()  # type: ignore
     def _on_select(self, selected: QtCore.QItemSelection, deselected):
         for index in selected.indexes():
@@ -219,32 +236,29 @@ class ImageViewer(QtWidgets.QMainWindow):
                 image_index = level * \
                     (layer_count * face_count * depth_count) + layer * \
                     (face_count * depth_count) + face * (depth_count) + depth
-                # print(
-                #     f'show image: {level}, {layer}, {face}, {depth}: {image_index}')
                 self._set_image(
                     self.ktx2.levelImages[image_index], self.ktx2.vkFormat)
             case _:
-                # print('not match')
                 pass
 
     def load_file(self, path: pathlib.Path):
         import pyktx2.parser
-        self.ktx2 = pyktx2.parser.parse_path(path)
+        try:
+            self.ktx2 = pyktx2.parser.parse_path(path)
 
-        self.model = Ktx2Model(path, self.ktx2)
-        self.tree.setModel(self.model)
-        self.tree.selectionModel().selectionChanged.connect(  # type: ignore
-            self._on_select)
+            self.model = Ktx2Model(path, self.ktx2)
+            self.tree.setModel(self.model)
+            self.tree.selectionModel().selectionChanged.connect(  # type: ignore
+                self._on_select)
 
-        message = f'Opened "{path}", {self.ktx2.pixelWidth}x{self.ktx2.pixelHeight}, format: {self.ktx2.vkFormat})'
-        self.statusBar().showMessage(message)
-        # return True
+            message = f'Opened "{path}", {self.ktx2.pixelWidth}x{self.ktx2.pixelHeight}, format: {self.ktx2.vkFormat})'
+            self.statusBar().showMessage(message)
+        except Exception as e:
+            logger.error(e)
 
     def _set_image(self, data: pyktx2.parser.Image, format: pyktx2.parser.VkFormat):
         image = QtGui.QImage(data.data, data.width,
                              data.height, QtGui.QImage.Format_RGBA16FPx4)
-        # if self._image.colorSpace().isValid():
-        #     self._image.convertToColorSpace(QtGui.QColorSpace.SRgb)
         self._image_label.setPixmap(QtGui.QPixmap.fromImage(image))
 
     @ QtCore.Slot()  # type: ignore

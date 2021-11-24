@@ -676,6 +676,12 @@ def parse_bytes(data: bytes) -> Ktx2:
             case SupercompressionScheme.BasisLZ:
                 pass
 
+            case SupercompressionScheme.Zstandard:
+                pass
+
+            case SupercompressionScheme.ZLIB:
+                pass
+
             case _:
                 raise NotImplementedError()
 

@@ -20,7 +20,8 @@
             "request": "launch",
             "module": "pyktx2.viewer",
             "args": [
-                "${env:GLTF_SAMPLE_MODELS}/2.0/StainedGlassLamp/glTF-KTX-BasisU/StainedGlassLamp_base_basecolor.ktx2"
+                // "${env:GLTF_SAMPLE_MODELS}/2.0/StainedGlassLamp/glTF-KTX-BasisU/StainedGlassLamp_base_basecolor.ktx2"
+                "${env:GLTF_SAMPLE_MODELS}/2.0/StainedGlassLamp/glTF-KTX-BasisU/StainedGlassLamp_base_normal.ktx2"
             ],
             "console": "integratedTerminal"
         },

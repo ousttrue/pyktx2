@@ -6,8 +6,9 @@ def run():
     """PySide6 port of the widgets/imageviewer example from Qt v6.0"""
     from argparse import ArgumentParser, RawTextHelpFormatter
     import sys
-
     from PySide6.QtWidgets import (QApplication)
+    import logging
+    logging.basicConfig(level=logging.DEBUG)
 
     arg_parser = ArgumentParser(description="Image Viewer",
                                 formatter_class=RawTextHelpFormatter)
